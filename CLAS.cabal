@@ -1,0 +1,51 @@
+cabal-version:      3.4
+name:               CLAS
+version:            0.1.0.0
+license:            MIT
+copyright:          2024 Ted Bjurlin
+maintainer:         teddybjurlin@gmail.com
+author:             Ted Bjurlin
+category:           Language
+
+-- TODO: Before hackage release.
+-- A short (one-line) description of the package.
+synopsis:           A template for Haskell projects using Nix
+
+-- A longer description of the package.
+-- description:
+
+-- A URL where users can report bugs.
+-- bug-reports:
+
+extra-source-files:
+  LICENSE
+  README.md
+
+common shared
+  ghc-options:
+    -Wall -Wincomplete-record-updates -Wincomplete-uni-patterns
+    -Wmissing-deriving-strategies -Wunused-foralls -Wunused-foralls
+    -fprint-explicit-foralls -fprint-explicit-kinds
+
+  mixins:
+    base,
+
+  default-extensions:
+    GADTSyntax
+    ViewPatterns
+
+  build-depends:
+    , base          >=4   && <5
+    , directory
+    , filepath
+    , ghc-mod
+    , apply-refact
+    , hlint
+    , hoogle
+
+  hs-source-dirs:     src
+  default-language:   Haskell2010
+
+executable CLAS
+  import:  shared
+  main-is: Main.hs
