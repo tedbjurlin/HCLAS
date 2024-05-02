@@ -1,5 +1,5 @@
+{-# LANGUAGE GADTs #-}
 module Main where
 
 main :: IO ()
-main = do
-  print "Hello Wolrd"
+main = putStrLn "Hello, Haskell!"
