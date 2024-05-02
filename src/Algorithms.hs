@@ -8,18 +8,53 @@ import Data.List.Split
 import Data.Ratio (approxRational, (%))
 import Types
 
--- efHelper :: Int -> Int -> Matrix -> Matrix
--- efHelper r c a =
---   if c > n || r > m
---     then a
---     else
---  where
---   (m, n) = (snd . bounds) a
---   as = chunksOf n (elems a)
---   sl = sortBy (compRows r c) as
+ef :: Matrix -> (Maybe Scalar, Matrix)
+ef = efHelper 1 1 1
 
-compRows :: Int -> Int -> [Scalar] -> [Scalar] -> Ordering
-compRows = undefined
+efHelper :: Scalar -> Int -> Int -> Matrix -> (Maybe Scalar, Matrix)
+efHelper det r c a
+  | c > n || r >= m =
+      if m == n
+        then (Just $ det * diag, a)
+        else (Nothing, a)
+  | sl ! (r + 1, c) == 0 = efHelper det r (c + 1) a
+  | otherwise = efHelper det' (r + 1) (c + 1) m'
+ where
+  diag = product [a ! (i, i) | i <- [1 .. m]]
+  (m, n) = (snd . bounds) a
+  (det', sl) = sortMat det r c a
+  m' = zeroRowsEF r c (r + 1) sl
+
+zeroRowsEF :: Int -> Int -> Int -> Matrix -> Matrix
+zeroRowsEF r c i m =
+  if i > s || m ! (i, c) == 0
+    then m
+    else zeroRowsEF r c (i + 1) replaced
+ where
+  replaced = rowReplace m i r (-k)
+  k = m ! (i, c) / m ! (r, c)
+  s = (fst . snd . bounds) m
+
+sortMat :: Scalar -> Int -> Int -> Matrix -> (Scalar, Matrix)
+sortMat det r c m
+  | r > (fst . snd . bounds) m = (det, m)
+  | ml == r = sortMat det (r + 1) c m
+  | otherwise = sortMat (-det) (r + 1) c swap
+ where
+  swap = rowSwap m r ml
+  ml = maxLoc (r + 1) c r (m ! (r, c)) m
+
+maxLoc :: Int -> Int -> Int -> Scalar -> Matrix -> Int
+maxLoc r c l s m
+  | r > (fst . snd . bounds) m = l
+  | abs (m ! (r, c)) > abs s = maxLoc (r + 1) c r (abs (m ! (r, c))) m
+  | otherwise = maxLoc (r + 1) c l s m
+
+compRows :: Int -> Int -> (Int, [Scalar]) -> (Int, [Scalar]) -> Ordering
+compRows r c (r1, es1) (r2, es2) =
+  if r1 <= r || r2 <= r
+    then compare r1 r2
+    else compare (es1 !! (c - 1)) (es2 !! (c - 1))
 
 swapRows :: (Ix i) => i -> i -> (i, i) -> (i, i)
 swapRows r1 r2 (i, j)
@@ -45,7 +80,7 @@ rowReplace m r1 r2 s = array (bounds m) (map f ms)
   ms = assocs m
   f ((i, j), e) =
     if i == r1
-      then ((i, j), e * s * (m ! (r2, j)))
+      then ((i, j), e + s * (m ! (r2, j)))
       else ((i, j), e)
 
 qrAlgo :: Matrix -> Matrix
@@ -100,3 +135,29 @@ joinVectors :: [Vector] -> Matrix
 joinVectors vs = transpose $ listArray ((1, 1), (length vs, s)) (concatMap elems vs)
  where
   s = (snd . snd . bounds . head) vs
+
+eigenSpace :: Matrix -> Scalar -> [Vector]
+eigenSpace a s = nullSpace $ genMatAdd (-) a $ scalMatMult s $ identity n
+ where
+  n = (snd . snd . bounds) a
+
+isEigenVector :: Vector -> Matrix -> Bool
+isEigenVector v a = not $ isLinearlyIndependent [v, matMult a v]
+
+isEigenValue :: Matrix -> Scalar -> Bool
+isEigenValue m = isLinearlyIndependent . eigenSpace m
+
+nullSpace :: Matrix -> [Vector]
+nullSpace = undefined
+
+-- possibly relies on swapped columns and rows in original code. Vectorlists of row-vectors, not column-vectors
+isLinearlyIndependent :: [Vector] -> Bool
+isLinearlyIndependent [] = undefined
+
+-- isLinearlyIndependent vs = (length vs <= dim vs) && not (isZeroVector r)
+--  where
+--   dim = fst . snd . bounds . head
+--   r = getRow (snd . ef) (joinVectors vs)
+
+isZeroVector :: Vector -> Bool
+isZeroVector = undefined

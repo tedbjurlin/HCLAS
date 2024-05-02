@@ -99,3 +99,6 @@ joinWith :: String -> [String] -> String
 joinWith _ [] = ""
 joinWith _ [a] = a
 joinWith j (a : as) = a ++ j ++ joinWith j as
+
+identity :: Int -> Matrix
+identity n = array ((1, 1), (n, n)) [if i == j then ((i, j), 1) else ((i, j), 0) | i <- [1 .. n], j <- [1 .. n]]
