@@ -265,3 +265,31 @@ rowSpace :: Matrix -> [Vector]
 rowSpace a = map fst $ takeWhile (not . isZeroVector . snd) (zip (rows a) (rows efForm))
  where
   (_, efForm) = ef a
+
+independentSubset :: [Vector] -> [Vector]
+independentSubset [] = []
+independentSubset vs = columnSpace (joinColumns vs)
+
+withinSpan :: [Vector] -> Vector -> Bool
+withinSpan vs v
+  | null vs = False
+  | (dim . head) vs /= dim v = error "Vector must have the same dimension as the vector space"
+  | otherwise = isConsistent efResult
+ where
+  dim = snd . snd . bounds
+  m = augment (joinColumns vs) v
+  efResult = snd (ef m)
+
+spans :: [Vector] -> [Vector] -> Bool
+spans a b
+  | null a = False
+  | null b = True
+  | (dim . head) a /= (dim . head) b = error "Vector spaces must have the same dimension"
+  | otherwise = length (independentSubset a) == length (independentSubset b)
+ where
+  dim = snd . snd . bounds
+
+isBasis :: [Vector] -> Bool
+isBasis vs = not (null vs) && ((length vs == dim vs) && isLinearlyIndependent vs)
+ where
+  dim = snd . snd . bounds . head
