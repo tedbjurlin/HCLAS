@@ -3,7 +3,8 @@ module Algorithms where
 import Data.Array (array, assocs, bounds, elems, ixmap, listArray, (!))
 import Data.Array.Base (amap)
 import Data.Ix
-import Data.List (find, sortBy)
+import Data.List (find)
+import qualified Data.List as L
 import Data.List.Split
 import Data.Ratio (approxRational, (%))
 import Types
@@ -13,17 +14,20 @@ ef = efHelper 1 1 1
 
 efHelper :: Scalar -> Int -> Int -> Matrix -> (Maybe Scalar, Matrix)
 efHelper det r c a
-  | c > n || r >= m =
+  | c > n || r > m =
       if m == n
         then (Just $ det * diag, a)
         else (Nothing, a)
-  | sl ! (r + 1, c) == 0 = efHelper det r (c + 1) a
-  | otherwise = efHelper det' (r + 1) (c + 1) m'
+  | a ! (r, c) == 0 = efHelper det r (c + 1) a
+  | (r > m) && sl' ! (r + 1, c) == 0 = efHelper det'' (r + 1) (c + 1) sl'
+  | otherwise = efHelper det'' (r + 1) (c + 1) m'
  where
   diag = product [a ! (i, i) | i <- [1 .. m]]
   (m, n) = (snd . bounds) a
   (det', sl) = sortMat det r c a
-  m' = zeroRowsEF r c (r + 1) sl
+  k = 1 / (sl ! (r, c))
+  (det'', sl') = (det' * k, rowScale sl r k)
+  m' = zeroRowsEF r c (r + 1) sl'
 
 zeroRowsEF :: Int -> Int -> Int -> Matrix -> Matrix
 zeroRowsEF r c i m =
@@ -55,6 +59,29 @@ compRows r c (r1, es1) (r2, es2) =
   if r1 <= r || r2 <= r
     then compare r1 r2
     else compare (es1 !! (c - 1)) (es2 !! (c - 1))
+
+rref :: Matrix -> (Maybe Scalar, Matrix)
+rref a = (det, rrefHelper 1 1 efForm)
+ where
+  (det, efForm) = ef a
+
+rrefHelper :: Int -> Int -> Matrix -> Matrix
+rrefHelper i j a
+  | i > r || j > c = a
+  | a ! (i, j) == 0 = rrefHelper i (j + 1) a
+  | otherwise = rrefHelper (i + 1) (j + 1) z
+ where
+  z = zeroRowsRREF i j (i - 1) a
+  (r, c) = (snd . bounds) a
+
+zeroRowsRREF :: Int -> Int -> Int -> Matrix -> Matrix
+zeroRowsRREF r c i m =
+  if i < 1
+    then m
+    else zeroRowsRREF r c (i - 1) replaced
+ where
+  replaced = rowReplace m i r (-k)
+  k = m ! (i, c)
 
 swapRows :: (Ix i) => i -> i -> (i, i) -> (i, i)
 swapRows r1 r2 (i, j)
@@ -100,7 +127,7 @@ qrStep a = matMult r q
   r = consUpTriag q a
 
 consUpTriag :: Matrix -> Matrix -> Matrix
-consUpTriag q a = joinVectors $ zipWith (consColumn qs) [1 ..] as
+consUpTriag q a = joinColumns $ zipWith (consColumn qs) [1 ..] as
  where
   as = columns a
   qs = columns q
@@ -111,7 +138,7 @@ consColumn qs i a = listArray ((1, 1), (1, s)) $ take s (take i (map (`dotProd` 
   s = (snd . snd . bounds) a
 
 gramSchmidt :: Matrix -> Matrix
-gramSchmidt a = (joinVectors . map normalize . zipWith ($) projs) as
+gramSchmidt a = (joinColumns . map normalize . zipWith ($) projs) as
  where
   as = columns a
   projs = gsScan as
@@ -125,14 +152,35 @@ gsComb a vprev v = genMatAdd (-) (a v) (gsProj (a vprev) v)
 gsProj :: Vector -> Vector -> Vector
 gsProj u v = scalMatMult (dotProd v u / dotProd u u) u
 
+augment :: Matrix -> Matrix -> Matrix
+augment a b = joinColumns (columns a ++ columns b)
+
+splitMat :: Int -> Matrix -> (Matrix, Matrix)
+splitMat i m = (fArray (concat (L.transpose l1)), bArray (concat (L.transpose l2)))
+ where
+  (l1, l2) = splitAt i (chunksOf r (elems (transpose m)))
+  fArray = listArray (l, (r, i))
+  bArray = listArray (l, (r, c - i))
+  (l, (r, c)) = bounds m
+
 columns :: Matrix -> [Vector]
 columns a = map (listArray ((1, 1), (1, j))) (chunksOf j (elems a'))
  where
   (_, (_, j)) = bounds a'
   a' = transpose a
 
-joinVectors :: [Vector] -> Matrix
-joinVectors vs = transpose $ listArray ((1, 1), (length vs, s)) (concatMap elems vs)
+joinColumns :: [Vector] -> Matrix
+joinColumns vs = transpose $ listArray ((1, 1), (length vs, s)) (concatMap elems vs)
+ where
+  s = (snd . snd . bounds . head) vs
+
+rows :: Matrix -> [Vector]
+rows a = map (listArray ((1, 1), (1, j))) (chunksOf j (elems a))
+ where
+  (_, (_, j)) = bounds a
+
+joinRows :: [Vector] -> Matrix
+joinRows vs = listArray ((1, 1), (length vs, s)) (concatMap elems vs)
  where
   s = (snd . snd . bounds . head) vs
 
@@ -150,14 +198,23 @@ isEigenValue m = isLinearlyIndependent . eigenSpace m
 nullSpace :: Matrix -> [Vector]
 nullSpace = undefined
 
--- possibly relies on swapped columns and rows in original code. Vectorlists of row-vectors, not column-vectors
 isLinearlyIndependent :: [Vector] -> Bool
-isLinearlyIndependent [] = undefined
-
--- isLinearlyIndependent vs = (length vs <= dim vs) && not (isZeroVector r)
---  where
---   dim = fst . snd . bounds . head
---   r = getRow (snd . ef) (joinVectors vs)
+isLinearlyIndependent [] = False
+isLinearlyIndependent vs = (length vs <= dim vs) && not (isZeroVector r)
+ where
+  dim = snd . snd . bounds . head
+  r = (rows . snd . ef) (joinColumns vs) !! (length vs - 1)
 
 isZeroVector :: Vector -> Bool
-isZeroVector = undefined
+isZeroVector = all (== 0) . elems
+
+inverse :: Matrix -> Matrix
+inverse m
+  | r /= c = error "Cannot take the inverse of a non-square matrix"
+  | det == Just 0 = error "Matrix is not invertible"
+  | otherwise = (snd . splitMat c) rrefForm
+ where
+  (_, (r, c)) = bounds m
+  comb = augment m (identity r)
+  (det, _) = ef m
+  (_, rrefForm) = rref comb

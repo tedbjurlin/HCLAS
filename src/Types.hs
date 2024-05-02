@@ -7,6 +7,7 @@ import Data.Array
 import Data.Array.Base (amap)
 import Data.List.Split (chunksOf)
 import Data.Ratio (approxRational, (%))
+import Data.Tuple (swap)
 
 type Scalar = Rational
 
@@ -73,7 +74,9 @@ prettyMatrix :: Matrix -> String
 prettyMatrix = concatMap ((' ' :) . show)
 
 transpose :: Matrix -> Matrix
-transpose m = ixmap (bounds m) (\(i, j) -> (j, i)) m
+transpose m = ixmap newBounds (\(i, j) -> (j, i)) m
+ where
+  newBounds = (fst (bounds m), (swap . snd . bounds) m)
 
 dotProd :: Vector -> Vector -> Scalar
 dotProd v1 v2 = sum $ zipWith (*) v1' v2'
@@ -92,8 +95,8 @@ printGrid a = putStrLn str
  where
   size = (snd . snd . bounds) a
   chunks = chunksOf size (elems a)
-  lnes = map (unwords . map show) chunks
-  str = "[ " ++ joinWith "\n, " lnes ++ " ]"
+  lnes = map (joinWith "  " . map show) chunks
+  str = "[  " ++ joinWith "\n|  " lnes ++ "  ]"
 
 joinWith :: String -> [String] -> String
 joinWith _ [] = ""
