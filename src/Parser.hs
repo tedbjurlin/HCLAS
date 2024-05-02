@@ -1,35 +1,26 @@
 module Parser where
 
-import           Data.Void (Void)
-import           Text.Megaparsec as P (Parsec, empty, try, (<|>), eof, many, parse, errorBundlePretty, choice, sepBy, between, sepBy1, some)
-import           Text.Megaparsec.Char (string, space1, letterChar, char, digitChar, alphaNumChar)
-import qualified Text.Megaparsec.Char.Lexer as L
-import           System.Environment (getArgs)
-import           System.FilePath.Posix (takeBaseName, (</>), (-<.>), (<.>), takeDirectory)
-import           System.Directory (listDirectory, doesFileExist)
 import Control.Monad.Combinators.Expr
+import Data.Array (listArray)
+import Data.Void (Void)
+import System.Directory (doesFileExist, listDirectory)
+import System.Environment (getArgs)
+import System.FilePath.Posix (takeBaseName, takeDirectory, (-<.>), (<.>), (</>))
+import Text.Megaparsec as P (Parsec, between, choice, empty, eof, errorBundlePretty, many, parse, sepBy, sepBy1, some, try, (<|>))
+import Text.Megaparsec.Char (alphaNumChar, char, digitChar, letterChar, space1, string)
+import qualified Text.Megaparsec.Char.Lexer as L
+import Types
 
 type ExpressionBlock = [Expression]
 
 data Expression where
   Assignment :: String -> Expression -> Expression
   Variable :: String -> Expression
-  ValueExpression:: Value -> Expression
+  ValueExpression :: Value -> Expression
   FunctionExpression :: Function -> ExpressionBlock -> Expression
   BinaryOperation :: BinOp -> Expression -> Expression -> Expression
   Negation :: Expression -> Expression
-  deriving Show
-
-data Scalar
-  = R Rational
-  | F Float
-  deriving (Show, Eq)
-
-newtype Vector = Vector [Scalar]
-  deriving (Show, Eq)
-
-data Matrix = Matrix [Scalar] Int Int
-  deriving (Show, Eq)
+  deriving (Show)
 
 data Value
   = S Scalar
@@ -70,15 +61,16 @@ data BinOp
   | Sub
   | Mul
   | Div
-  deriving Show
+  deriving (Show)
 
 type Parser = Parsec Void String
 
 whitespace :: Parser ()
-whitespace = L.space
-  space1
-  P.empty
-  P.empty
+whitespace =
+  L.space
+    space1
+    P.empty
+    P.empty
 
 lexeme :: Parser a -> Parser a
 lexeme = L.lexeme whitespace
@@ -117,36 +109,42 @@ pExpression :: Parser Expression
 pExpression = makeExprParser pAtom operatorTable
 
 pAtom :: Parser Expression
-pAtom = choice
-  [ pValueExpression
-  , pFunction
-  , pVariable ]
+pAtom =
+  choice
+    [ pValueExpression
+    , pFunction
+    , pVariable
+    ]
 
 operatorTable :: [[Operator Parser Expression]]
 operatorTable =
-  [ [ prefix "-" Negation
+  [
+    [ prefix "-" Negation
     ]
-  , [ binary "*" Mul
+  ,
+    [ binary "*" Mul
     , binary "/" Div
     ]
-  , [ binary "+" Add
+  ,
+    [ binary "+" Add
     , binary "-" Sub
     ]
   ]
 
 binary :: String -> BinOp -> Operator Parser Expression
-binary  name f = InfixL  (BinaryOperation f <$ symbol name)
+binary name f = InfixL (BinaryOperation f <$ symbol name)
 
 prefix :: String -> (Expression -> Expression) -> Operator Parser Expression
-prefix  name f = Prefix  (f <$ symbol name)
+prefix name f = Prefix (f <$ symbol name)
 
 pVariable :: Parser Expression
 pVariable = Variable <$> identifier
 
 pFunction :: Parser Expression
-pFunction = FunctionExpression
-  <$> choice (map pFunctionName (enumFrom INVERSE))
-  <*> pArgs
+pFunction =
+  FunctionExpression
+    <$> choice (map pFunctionName (enumFrom INVERSE))
+    <*> pArgs
 
 pFunctionName :: Function -> Parser Function
 pFunctionName f = f <$ reserved (show f)
@@ -158,33 +156,37 @@ pValueExpression :: Parser Expression
 pValueExpression = ValueExpression <$> pValue
 
 pValue :: Parser Value
-pValue = choice
-  [ S <$> pScalar
-  , V <$> pVector
-  , M <$> pMatrix
-  , VL <$> pVectorList ]
+pValue =
+  choice
+    [ S <$> pScalar
+    , V <$> pVector
+    , M <$> pMatrix
+    , VL <$> pVectorList
+    ]
 
 pVector :: Parser Vector
-pVector = Vector <$> between (symbol "<") (symbol ">") pRow
+pVector = constructVector =<< between (symbol "<") (symbol ">") pRow
+
+constructVector :: [Scalar] -> Parser Vector
+constructVector s = return $ listArray ((1, 1), (length s, 1)) s
 
 pVectorList :: Parser [Vector]
-pVectorList = between (symbol "<") (symbol ">") (sepBy1 pVector (symbol ","))
+pVectorList = between (symbol "{") (symbol "}") (sepBy1 pVector (symbol ","))
 
 pMatrix :: Parser Matrix
 pMatrix = constructMatrix =<< between (symbol "[") (symbol "]") (sepBy1 pRow (symbol "|"))
 
 constructMatrix :: [[Scalar]] -> Parser Matrix
-constructMatrix l = if all ((== (length $ head l)) . length) (tail l)
-  then return $ Matrix (concat l) ((length . head) l) (length l)
-  else fail "All rows in a matrix must be of equal length."
+constructMatrix l =
+  if all ((== (length $ head l)) . length) (tail l)
+    then return $ listArray ((1, 1), (length l, (length . head) l)) (concat l)
+    else fail "All rows in a matrix must be of equal length."
 
 pRow :: Parser [Scalar]
 pRow = some pScalar
 
 pScalar :: Parser Scalar
-pScalar = choice
-  [ F <$> L.signed whitespace float
-  , R . fromIntegral <$> L.signed whitespace integer]
+pScalar = fromIntegral <$> L.signed whitespace integer
 
 pInput :: Parser ExpressionBlock
 pInput = whitespace *> pExpressionBlock <* eof

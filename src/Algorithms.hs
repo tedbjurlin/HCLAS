@@ -133,9 +133,9 @@ consUpTriag q a = joinColumns $ zipWith (consColumn qs) [1 ..] as
   qs = columns q
 
 consColumn :: [Vector] -> Int -> Vector -> Vector
-consColumn qs i a = listArray ((1, 1), (1, s)) $ take s (take i (map (`dotProd` a) qs) ++ repeat 0)
+consColumn qs i a = listArray ((1, 1), (s, 1)) $ take s (take i (map (`dotProd` a) qs) ++ repeat 0)
  where
-  s = (snd . snd . bounds) a
+  s = (fst . snd . bounds) a
 
 gramSchmidt :: Matrix -> Matrix
 gramSchmidt a = (joinColumns . map normalize . zipWith ($) projs) as
@@ -164,7 +164,7 @@ splitMat i m = (fArray (concat (L.transpose l1)), bArray (concat (L.transpose l2
   (l, (r, c)) = bounds m
 
 columns :: Matrix -> [Vector]
-columns a = map (listArray ((1, 1), (1, j))) (chunksOf j (elems a'))
+columns a = map (listArray ((1, 1), (j, 1))) (chunksOf j (elems a'))
  where
   (_, (_, j)) = bounds a'
   a' = transpose a
@@ -172,17 +172,17 @@ columns a = map (listArray ((1, 1), (1, j))) (chunksOf j (elems a'))
 joinColumns :: [Vector] -> Matrix
 joinColumns vs = transpose $ listArray ((1, 1), (length vs, s)) (concatMap elems vs)
  where
-  s = (snd . snd . bounds . head) vs
+  s = (fst . snd . bounds . head) vs
 
 rows :: Matrix -> [Vector]
-rows a = map (listArray ((1, 1), (1, j))) (chunksOf j (elems a))
+rows a = map (listArray ((1, 1), (j, 1))) (chunksOf j (elems a))
  where
   (_, (_, j)) = bounds a
 
 joinRows :: [Vector] -> Matrix
 joinRows vs = listArray ((1, 1), (length vs, s)) (concatMap elems vs)
  where
-  s = (snd . snd . bounds . head) vs
+  s = (fst . snd . bounds . head) vs
 
 eigenSpace :: Matrix -> Scalar -> [Vector]
 eigenSpace a s = nullSpace $ genMatAdd (-) a $ scalMatMult s $ identity n
@@ -206,7 +206,7 @@ isLinearlyIndependent :: [Vector] -> Bool
 isLinearlyIndependent [] = False
 isLinearlyIndependent vs = (length vs <= dim vs) && not (isZeroVector r)
  where
-  dim = snd . snd . bounds . head
+  dim = fst . snd . bounds . head
   r = (rows . snd . ef) (joinColumns vs) !! (length vs - 1)
 
 isZeroVector :: Vector -> Bool
@@ -276,7 +276,7 @@ withinSpan vs v
   | (dim . head) vs /= dim v = error "Vector must have the same dimension as the vector space"
   | otherwise = isConsistent efResult
  where
-  dim = snd . snd . bounds
+  dim = fst . snd . bounds
   m = augment (joinColumns vs) v
   efResult = snd (ef m)
 
@@ -287,9 +287,9 @@ spans a b
   | (dim . head) a /= (dim . head) b = error "Vector spaces must have the same dimension"
   | otherwise = length (independentSubset a) == length (independentSubset b)
  where
-  dim = snd . snd . bounds
+  dim = fst . snd . bounds
 
 isBasis :: [Vector] -> Bool
 isBasis vs = not (null vs) && ((length vs == dim vs) && isLinearlyIndependent vs)
  where
-  dim = snd . snd . bounds . head
+  dim = fst . snd . bounds . head

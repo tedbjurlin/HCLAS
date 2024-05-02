@@ -6,7 +6,7 @@ module Types where
 import Data.Array
 import Data.Array.Base (amap)
 import Data.List.Split (chunksOf)
-import Data.Ratio (approxRational, (%))
+import Data.Ratio (approxRational)
 import Data.Tuple (swap)
 
 type Scalar = Rational
