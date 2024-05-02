@@ -50,7 +50,7 @@ executable CLAS
     Types
     Algorithms
     Parser
-    Test
+    PrettyPrinter
 
   build-depends:
     , megaparsec
