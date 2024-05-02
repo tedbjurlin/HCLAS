@@ -2,10 +2,10 @@ module Algorithms where
 
 import Data.Array (array, assocs, bounds, elems, ixmap, listArray, (!))
 import Data.Array.Base (amap)
-import Data.Ix
+import Data.Ix (Ix)
 import Data.List (find)
 import qualified Data.List as L
-import Data.List.Split
+import Data.List.Split (chunksOf)
 import Data.Ratio (approxRational, (%))
 import Types
 
@@ -196,7 +196,11 @@ isEigenValue :: Matrix -> Scalar -> Bool
 isEigenValue m = isLinearlyIndependent . eigenSpace m
 
 nullSpace :: Matrix -> [Vector]
-nullSpace = undefined
+nullSpace a = map snd $ takeWhile (isZeroVector . (rows tEf !!) . fst) (zip (iterate (flip (-) 1) (r - 1)) (reverse $ rows inv))
+ where
+  (_, (r, c)) = bounds a
+  (tEf, inv) = splitMat c efRes
+  (_, efRes) = ef (augment (transpose a) (identity c))
 
 isLinearlyIndependent :: [Vector] -> Bool
 isLinearlyIndependent [] = False
@@ -218,3 +222,46 @@ inverse m
   comb = augment m (identity r)
   (det, _) = ef m
   (_, rrefForm) = rref comb
+
+pivotPos :: Vector -> Int
+pivotPos v = case find ((/= 0) . snd) (zip [1 ..] es) of
+  Just (i, _) -> i
+  Nothing -> length es + 1
+ where
+  es = elems v
+
+rank :: Matrix -> Int
+rank a = case find ((> r) . snd) (zip [0 ..] ps) of
+  Just (i, _) -> i
+  Nothing -> r
+ where
+  (_, (r, _)) = bounds a
+  (_, efForm) = ef a
+  rs = rows efForm
+  ps = map pivotPos rs
+
+nullity :: Matrix -> Int
+nullity a = rs - r
+ where
+  (_, (rs, _)) = bounds a
+  r = rank a
+
+isConsistent :: Matrix -> Bool
+isConsistent a = case find (== r) ps of
+  Just _ -> False
+  Nothing -> True
+ where
+  (_, (r, _)) = bounds a
+  (_, efForm) = ef a
+  ps = map pivotPos (rows efForm)
+
+columnSpace :: Matrix -> [Vector]
+columnSpace a = map ((columns a !!) . flip (-) 1) ps
+ where
+  (_, (r, _)) = bounds a
+  ps = takeWhile (<= r) (map pivotPos (rows (snd $ ef a)))
+
+rowSpace :: Matrix -> [Vector]
+rowSpace a = map fst $ takeWhile (not . isZeroVector . snd) (zip (rows a) (rows efForm))
+ where
+  (_, efForm) = ef a
