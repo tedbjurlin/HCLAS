@@ -31,22 +31,7 @@ repl m v = do
   putStr ">> "
   hFlush stdout
   l <- getLine
-  unless (l == "EXIT()") $
-    case parseInput l of
-      (Left err) -> do
-        let errs = bundleErrors err
-        let e = NE.head errs
-        case e of
-          (TrivialError _ (Just EndOfInput) _) -> multiLine l m v
-          _ -> putStrLn (errorBundlePretty err) >> repl m v
-      (Right ex) -> do
-        case interpret m v ex of
-          Left err -> do
-            putStrLn err
-            repl m v
-          Right (m', v') -> do
-            printPretty v'
-            repl m' v'
+  replBody l m v
 
 multiLine :: String -> Map String Value -> Value -> IO ()
 multiLine l m v = do
@@ -54,19 +39,21 @@ multiLine l m v = do
   hFlush stdout
   l2 <- getLine
   let l' = l ++ l2
-  unless (l' == "EXIT()") $
-    case parseInput l' of
-      (Left err) -> do
-        let errs = bundleErrors err
-        let e = NE.head errs
-        case e of
-          (TrivialError _ (Just EndOfInput) _) -> multiLine l' m v
-          _ -> putStrLn (errorBundlePretty err) >> repl m v
-      (Right ex) -> do
-        case interpret m v ex of
-          Left err -> do
-            putStrLn err
-            repl m v
-          Right (m', v') -> do
-            printPretty v'
-            repl m' v'
+  replBody l' m v
+
+replBody :: String -> Map String Value -> Value -> IO ()
+replBody l m v = unless (l == "EXIT()") $ case parseInput l of
+  (Left err) -> do
+    let errs = bundleErrors err
+    let e = NE.head errs
+    case e of
+      (TrivialError _ (Just EndOfInput) _) -> multiLine l m v
+      _ -> putStrLn (errorBundlePretty err) >> repl m v
+  (Right ex) -> do
+    case interpret m v ex of
+      Left err -> do
+        putStrLn err
+        repl m v
+      Right (m', v') -> do
+        printPretty v'
+        repl m' v'

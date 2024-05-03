@@ -8,7 +8,10 @@ import Text.PrettyPrint.Boxes (Box, center1, char, emptyBox, hsep, left, render,
 import Types (Matrix, Scalar, Value (B, M, S, V, VL), Vector)
 
 prettyColumn :: [Scalar] -> Box
-prettyColumn ss = nums <+> seps <+> denoms
+prettyColumn ss =
+  if all ((1 ==) . denominator) ss
+    then nums
+    else nums <+> seps <+> denoms
  where
   nums = vcat right $ map (text . show . numerator) ss
   denoms = vcat right $ map (text . show . denominator) ss
