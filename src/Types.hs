@@ -90,18 +90,57 @@ norm = flip approxRational (0.0000001 :: Float) . sqrt . fromRational . sum . ma
 normalize :: Vector -> Vector
 normalize v = scalMatMult (1 / norm v) v
 
-printGrid :: (Show a) => Array (Int, Int) a -> IO ()
-printGrid a = putStrLn str
- where
-  size = (snd . snd . bounds) a
-  chunks = chunksOf size (elems a)
-  lnes = map (joinWith "  " . map show) chunks
-  str = "[  " ++ joinWith "\n|  " lnes ++ "  ]"
-
-joinWith :: String -> [String] -> String
-joinWith _ [] = ""
-joinWith _ [a] = a
-joinWith j (a : as) = a ++ j ++ joinWith j as
-
 identity :: Int -> Matrix
 identity n = array ((1, 1), (n, n)) [if i == j then ((i, j), 1) else ((i, j), 0) | i <- [1 .. n], j <- [1 .. n]]
+
+type ExpressionBlock = [Expression]
+
+data Expression where
+  Assignment :: String -> Expression -> Expression
+  Variable :: String -> Expression
+  ValueExpression :: Value -> Expression
+  FunctionExpression :: Function -> ExpressionBlock -> Expression
+  BinaryOperation :: BinOp -> Expression -> Expression -> Expression
+  Negation :: Expression -> Expression
+  deriving (Show)
+
+data Value
+  = S Scalar
+  | M Matrix
+  | V Vector
+  | VL [Vector]
+  deriving (Show, Eq)
+
+data Function
+  = INVERSE
+  | RREF
+  | EF
+  | SPAN
+  | DETERMINANT
+  | PROJECT
+  | DIM
+  | RANK
+  | NULLITY
+  | IS_CONSISTENT
+  | COL
+  | ROW
+  | NUL
+  | SPANS
+  | IS_BASIS
+  | QR
+  | AUGMENT
+  | TRANSPOSE
+  | ORTHO_BASIS
+  | IN_SPAN
+  | IS_INDEPENDENT
+  | EIGENSPACE
+  | IS_EIGENVALUE
+  | IS_EIGENVECTOR
+  deriving (Show, Enum)
+
+data BinOp
+  = Add
+  | Sub
+  | Mul
+  | Div
+  deriving (Show)

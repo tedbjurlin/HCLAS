@@ -11,58 +11,6 @@ import Text.Megaparsec.Char (alphaNumChar, char, digitChar, letterChar, space1, 
 import qualified Text.Megaparsec.Char.Lexer as L
 import Types
 
-type ExpressionBlock = [Expression]
-
-data Expression where
-  Assignment :: String -> Expression -> Expression
-  Variable :: String -> Expression
-  ValueExpression :: Value -> Expression
-  FunctionExpression :: Function -> ExpressionBlock -> Expression
-  BinaryOperation :: BinOp -> Expression -> Expression -> Expression
-  Negation :: Expression -> Expression
-  deriving (Show)
-
-data Value
-  = S Scalar
-  | M Matrix
-  | V Vector
-  | VL [Vector]
-  deriving (Show, Eq)
-
-data Function
-  = INVERSE
-  | RREF
-  | EF
-  | SPAN
-  | DETERMINANT
-  | PROJECT
-  | DIM
-  | RANK
-  | NULLITY
-  | IS_CONSISTENT
-  | COL
-  | ROW
-  | NUL
-  | SPANS
-  | IS_BASIS
-  | QR
-  | AUGMENT
-  | TRANSPOSE
-  | ORTHO_BASIS
-  | IN_SPAN
-  | IS_INDEPENDENT
-  | EIGENSPACE
-  | IS_EIGENVALUE
-  | IS_EIGENVECTOR
-  deriving (Show, Enum)
-
-data BinOp
-  = Add
-  | Sub
-  | Mul
-  | Div
-  deriving (Show)
-
 type Parser = Parsec Void String
 
 whitespace :: Parser ()

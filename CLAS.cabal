@@ -51,9 +51,12 @@ executable CLAS
     Algorithms
     Parser
     PrettyPrinter
+    Interpreter
 
   build-depends:
     , megaparsec
     , parser-combinators
     , array
     , split
+    , boxes
+    , containers

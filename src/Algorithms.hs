@@ -7,7 +7,18 @@ import Data.List (find)
 import qualified Data.List as L
 import Data.List.Split (chunksOf)
 import Data.Ratio (approxRational, (%))
-import Types
+import Types (
+  Matrix,
+  Scalar,
+  Vector,
+  dotProd,
+  genMatAdd,
+  identity,
+  matMult,
+  normalize,
+  scalMatMult,
+  transpose,
+ )
 
 ef :: Matrix -> (Maybe Scalar, Matrix)
 ef = efHelper 1 1 1
