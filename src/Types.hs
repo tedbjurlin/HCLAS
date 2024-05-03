@@ -19,49 +19,51 @@ checkSameSize :: Matrix -> Matrix -> Bool
 checkSameSize a b = bounds a == bounds b
 
 checkMultSize :: Matrix -> Matrix -> Bool
-checkMultSize a b = (lj, uj) == (li', ui')
+checkMultSize a b = uj == ui
  where
-  ((_, lj), (_, uj)) = bounds a
-  ((li', _), (ui', _)) = bounds b
+  ((_, _), (_, uj)) = bounds a
+  ((_, _), (ui, _)) = bounds b
 
 -- got some help from https://www.haskell.org/tutorial/arrays.html
-genMatAdd :: (Scalar -> Scalar -> Scalar) -> Matrix -> Matrix -> Matrix
+genMatAdd :: (Scalar -> Scalar -> Scalar) -> Matrix -> Matrix -> Either String Matrix
 genMatAdd plus a b =
   if checkSameSize a b
     then
-      array
-        (bounds a)
-        [ ((i, j), (a ! (i, j)) `plus` (b ! (i, j)))
-        | i <- range (li, ui)
-        , j <- range (lj, uj)
-        ]
-    else error "SizeCompareError (ui, uj) ((snd . bounds) b)"
+      Right $
+        array
+          (bounds a)
+          [ ((i, j), (a ! (i, j)) `plus` (b ! (i, j)))
+          | i <- range (li, ui)
+          , j <- range (lj, uj)
+          ]
+    else Left "Matrix addition size mismatch"
  where
   ((li, lj), (ui, uj)) = bounds a
 
-genMatMult :: (Scalar -> Scalar -> Scalar) -> Matrix -> Matrix -> Matrix
+genMatMult :: (Scalar -> Scalar -> Scalar) -> Matrix -> Matrix -> Either String Matrix
 genMatMult star a b =
   if checkMultSize a b
     then
-      accumArray
-        (+)
-        0
-        resultBounds
-        [ ((i, j), (a ! (i, k)) `star` (b ! (k, j)))
-        | i <- range (li, ui)
-        , j <- range (lj', uj')
-        , k <- range (lj, uj)
-        ]
-    else error "MultSizeError ((snd . bounds) a) ((snd . bounds) b)"
+      Right $
+        accumArray
+          (+)
+          0
+          resultBounds
+          [ ((i, j), (a ! (i, k)) `star` (b ! (k, j)))
+          | i <- range (li, ui)
+          , j <- range (lj', uj')
+          , k <- range (lj, uj)
+          ]
+    else Left "Matrix multiplication size mismatch"
  where
   ((li, lj), (ui, uj)) = bounds a
   ((_, lj'), (_, uj')) = bounds b
   resultBounds = ((li, lj'), (ui, uj'))
 
-matAdd :: Matrix -> Matrix -> Matrix
+matAdd :: Matrix -> Matrix -> Either String Matrix
 matAdd = genMatAdd (+)
 
-matMult :: Matrix -> Matrix -> Matrix
+matMult :: Matrix -> Matrix -> Either String Matrix
 matMult = genMatMult (*)
 
 scalMatMult :: Scalar -> Matrix -> Matrix

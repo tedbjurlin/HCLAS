@@ -4,7 +4,7 @@ import Data.Array (bounds, elems)
 import Data.List (transpose)
 import Data.List.Split (chunksOf)
 import Data.Ratio (denominator, numerator)
-import Text.PrettyPrint.Boxes (Box, center1, char, hsep, left, render, right, text, top, vcat, (//), (<+>))
+import Text.PrettyPrint.Boxes (Box, center1, char, emptyBox, hsep, left, render, right, text, top, vcat, (//), (<+>))
 import Types (Matrix, Scalar, Value (B, M, S, V, VL), Vector)
 
 prettyColumn :: [Scalar] -> Box
@@ -51,9 +51,12 @@ prettyBoolean True = text "YES"
 prettyBoolean False = text "NO"
 
 printPretty :: Value -> IO ()
-printPretty v = putStrLn $ render $ case v of
-  (B b) -> prettyBoolean b
-  (M m) -> prettyMatrix m
-  (V vec) -> prettyVector vec
-  (VL vl) -> prettyVectorList vl
-  (S s) -> prettyScalar s
+printPretty v =
+  putStrLn $
+    render $
+      emptyBox 1 1 // case v of
+        (B b) -> prettyBoolean b
+        (M m) -> prettyMatrix m
+        (V vec) -> prettyVector vec
+        (VL vl) -> prettyVectorList vl
+        (S s) -> prettyScalar s

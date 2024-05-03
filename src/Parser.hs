@@ -5,8 +5,9 @@ import Control.Monad.Combinators.Expr (
   makeExprParser,
  )
 import Data.Array (listArray)
+import Data.Ratio ((%))
 import Data.Void (Void)
-import Text.Megaparsec as P (Parsec, between, choice, empty, eof, errorBundlePretty, many, parse, sepBy, sepBy1, some, try)
+import Text.Megaparsec as P (ParseErrorBundle, Parsec, between, choice, empty, eof, many, parse, sepBy, sepBy1, some, try)
 import Text.Megaparsec.Char (alphaNumChar, letterChar, space1, string)
 import qualified Text.Megaparsec.Char.Lexer as L
 import Types (
@@ -54,10 +55,10 @@ pExpressionBlock :: Parser ExpressionBlock
 pExpressionBlock = sepBy pExp (symbol ";")
 
 pExp :: Parser Expression
-pExp = choice [try pAssignment, pExpression]
+pExp = choice [pAssignment, pExpression]
 
 pAssignment :: Parser Expression
-pAssignment = Assignment <$> pVarName <* reserved "<-" <*> pExpression
+pAssignment = try (Assignment <$> pVarName <* reserved "<-") <*> pExpression
 
 pVarName :: Parser String
 pVarName = (lexeme . try) ((:) <$> letterChar <*> many alphaNumChar)
@@ -143,12 +144,22 @@ pRow :: Parser [Scalar]
 pRow = some pScalar
 
 pScalar :: Parser Scalar
-pScalar = fromIntegral <$> L.signed whitespace integer
+pScalar =
+  choice
+    [ try (mkRatio (L.signed whitespace integer <* symbol "/") integer)
+    , fromIntegral <$> L.signed whitespace integer
+    ]
+
+mkRatio :: Parser Integer -> Parser Integer -> Parser Scalar
+mkRatio pn pd = do
+  n <- pn
+  d <- pd
+  if d == 0
+    then fail "Divide by zero error"
+    else return $ n % d
 
 pInput :: Parser ExpressionBlock
 pInput = whitespace *> pExpressionBlock <* eof
 
-parseInput :: String -> Either String ExpressionBlock
-parseInput s = case parse pInput "" s of
-  Left err -> Left $ errorBundlePretty err
-  Right e -> Right e
+parseInput :: String -> Either (ParseErrorBundle String Void) ExpressionBlock
+parseInput = parse pInput ""

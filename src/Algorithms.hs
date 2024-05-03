@@ -122,24 +122,28 @@ rowReplace m r1 r2 s = array (bounds m) (map f ms)
       then ((i, j), e + s * (m ! (r2, j)))
       else ((i, j), e)
 
-qrAlgo :: Matrix -> Matrix
+qrAlgo :: Matrix -> Either String Matrix
 qrAlgo a =
   if isLinearlyIndependent $ columns a
-    then case find (isUpperTriangular (1 % 100000)) $ iterate qrStep a of
-      (Just m) -> amap (flip approxRational (0.00001 :: Float) . fromRational) m
-      Nothing -> error "Impossible termination of infinite list"
-    else error "matrix is not linearly independent"
+    then
+      iterateEither qrStep a >>= \ms -> case find (isUpperTriangular (1 % 100000)) ms of
+        (Just m) -> Right $ amap (flip approxRational (0.00001 :: Float) . fromRational) m
+        Nothing -> Left "Impossible termination of infinite list"
+    else Left "matrix is not linearly independent"
+
+iterateEither :: (Matrix -> Either String Matrix) -> Matrix -> Either String [Matrix]
+iterateEither f m = (Right . (m :)) =<< (iterateEither f =<< f m)
 
 isUpperTriangular :: Scalar -> Matrix -> Bool
 isUpperTriangular epsilon a = all (\(_, s) -> s <= epsilon) (filter (\((i, j), _) -> i > j) as)
  where
   as = assocs a
 
-qrStep :: Matrix -> Matrix
-qrStep a = matMult r q
- where
-  q = gramSchmidt a
-  r = consUpTriag q a
+qrStep :: Matrix -> Either String Matrix
+qrStep a = do
+  q <- gramSchmidt a
+  let r = consUpTriag q a
+  matMult r q
 
 consUpTriag :: Matrix -> Matrix -> Matrix
 consUpTriag q a = joinColumns $ zipWith (consColumn qs) [1 ..] as
@@ -152,17 +156,26 @@ consColumn qs i a = listArray ((1, 1), (s, 1)) $ take s (take i (map (`dotProd` 
  where
   s = (fst . snd . bounds) a
 
-gramSchmidt :: Matrix -> Matrix
-gramSchmidt a = (joinColumns . map normalize . zipWith ($) projs) as
+gramSchmidt :: Matrix -> Either String Matrix
+gramSchmidt a = (Right . joinColumns . map normalize) =<< vs
  where
   as = columns a
   projs = gsScan as
+  vs = (collapseEither . zipWith ($) projs) as
 
-gsScan :: [Vector] -> [Vector -> Vector]
-gsScan = scanl gsComb id
+gsScan :: [Vector] -> [Vector -> Either String Vector]
+gsScan = scanl gsComb Right
 
-gsComb :: (Vector -> Vector) -> Vector -> (Vector -> Vector)
-gsComb a vprev v = genMatAdd (-) (a v) (gsProj (a vprev) v)
+collapseEither :: [Either String Vector] -> Either String [Vector]
+collapseEither [] = Right []
+collapseEither (Right v : vs) = (Right . (v :)) =<< collapseEither vs
+collapseEither (Left s : _) = Left s
+
+gsComb :: (Vector -> Either String Vector) -> Vector -> (Vector -> Either String Vector)
+gsComb a vprev v = do
+  c <- a v
+  d <- a vprev
+  genMatAdd (-) c (gsProj d v)
 
 gsProj :: Vector -> Vector -> Vector
 gsProj u v = scalMatMult (dotProd v u / dotProd u u) u
@@ -199,16 +212,16 @@ joinRows vs = listArray ((1, 1), (length vs, s)) (concatMap elems vs)
  where
   s = (fst . snd . bounds . head) vs
 
-eigenSpace :: Matrix -> Scalar -> [Vector]
-eigenSpace a s = nullSpace $ genMatAdd (-) a $ scalMatMult s $ identity n
+eigenSpace :: Matrix -> Scalar -> Either String [Vector]
+eigenSpace a s = (Right . nullSpace) =<< genMatAdd (-) a (scalMatMult s $ identity n)
  where
   n = (snd . snd . bounds) a
 
-isEigenVector :: Vector -> Matrix -> Bool
-isEigenVector v a = not $ isLinearlyIndependent [v, matMult a v]
+isEigenVector :: Vector -> Matrix -> Either String Bool
+isEigenVector v a = (Right . not . isLinearlyIndependent . (: [v])) =<< matMult a v
 
-isEigenValue :: Matrix -> Scalar -> Bool
-isEigenValue m = isLinearlyIndependent . eigenSpace m
+isEigenValue :: Matrix -> Scalar -> Either String Bool
+isEigenValue m s = (Right . isLinearlyIndependent) =<< eigenSpace m s
 
 nullSpace :: Matrix -> [Vector]
 nullSpace a = map snd $ takeWhile (isZeroVector . (rows tEf !!) . fst) (zip (iterate (flip (-) 1) (r - 1)) (reverse $ rows inv))

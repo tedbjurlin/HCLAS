@@ -3,11 +3,13 @@
 module Main where
 
 import Control.Monad (unless)
+import Data.List.NonEmpty as NE
 import Data.Map (Map, empty)
 import Interpreter (interpret)
 import Parser (parseInput)
 import PrettyPrinter (printPretty)
 import System.IO (hFlush, stdout)
+import Text.Megaparsec (ErrorItem (EndOfInput), ParseError (TrivialError), ParseErrorBundle (bundleErrors), errorBundlePretty)
 import Types
 
 main :: IO ()
@@ -31,8 +33,40 @@ repl m v = do
   l <- getLine
   unless (l == "EXIT()") $
     case parseInput l of
-      (Left err) -> putStrLn err >> repl m v
+      (Left err) -> do
+        let errs = bundleErrors err
+        let e = NE.head errs
+        case e of
+          (TrivialError _ (Just EndOfInput) _) -> multiLine l m v
+          _ -> putStrLn (errorBundlePretty err) >> repl m v
       (Right ex) -> do
-        let (m', v') = interpret m v ex
-        printPretty v'
-        repl m' v'
+        case interpret m v ex of
+          Left err -> do
+            putStrLn err
+            repl m v
+          Right (m', v') -> do
+            printPretty v'
+            repl m' v'
+
+multiLine :: String -> Map String Value -> Value -> IO ()
+multiLine l m v = do
+  putStr "-- "
+  hFlush stdout
+  l2 <- getLine
+  let l' = l ++ l2
+  unless (l' == "EXIT()") $
+    case parseInput l' of
+      (Left err) -> do
+        let errs = bundleErrors err
+        let e = NE.head errs
+        case e of
+          (TrivialError _ (Just EndOfInput) _) -> multiLine l' m v
+          _ -> putStrLn (errorBundlePretty err) >> repl m v
+      (Right ex) -> do
+        case interpret m v ex of
+          Left err -> do
+            putStrLn err
+            repl m v
+          Right (m', v') -> do
+            printPretty v'
+            repl m' v'
