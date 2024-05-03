@@ -2,10 +2,12 @@
 
 module Main where
 
+import Control.Monad (unless)
 import Data.Map (Map, empty)
 import Interpreter (interpret)
 import Parser (parseInput)
 import PrettyPrinter (printPretty)
+import System.IO (hFlush, stdout)
 import Types
 
 main :: IO ()
@@ -25,12 +27,12 @@ main = do
 repl :: Map String Value -> Value -> IO ()
 repl m v = do
   putStr ">> "
-  l <- readLn
-  if l == "EXIT()"
-    then return ()
-    else case parseInput l of
+  hFlush stdout
+  l <- getLine
+  unless (l == "EXIT()") $
+    case parseInput l of
       (Left err) -> putStrLn err >> repl m v
-      (Right exp) -> do
-        let (m', v') = interpret m v exp
+      (Right ex) -> do
+        let (m', v') = interpret m v ex
         printPretty v'
         repl m' v'

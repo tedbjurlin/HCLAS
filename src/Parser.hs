@@ -1,15 +1,24 @@
 module Parser where
 
-import Control.Monad.Combinators.Expr
+import Control.Monad.Combinators.Expr (
+  Operator (InfixL, Prefix),
+  makeExprParser,
+ )
 import Data.Array (listArray)
 import Data.Void (Void)
-import System.Directory (doesFileExist, listDirectory)
-import System.Environment (getArgs)
-import System.FilePath.Posix (takeBaseName, takeDirectory, (-<.>), (<.>), (</>))
-import Text.Megaparsec as P (Parsec, between, choice, empty, eof, errorBundlePretty, many, parse, sepBy, sepBy1, some, try, (<|>))
-import Text.Megaparsec.Char (alphaNumChar, char, digitChar, letterChar, space1, string)
+import Text.Megaparsec as P (Parsec, between, choice, empty, eof, errorBundlePretty, many, parse, sepBy, sepBy1, some, try)
+import Text.Megaparsec.Char (alphaNumChar, letterChar, space1, string)
 import qualified Text.Megaparsec.Char.Lexer as L
-import Types
+import Types (
+  BinOp (..),
+  Expression (..),
+  ExpressionBlock,
+  Function (INVERSE),
+  Matrix,
+  Scalar,
+  Value (M, S, V, VL),
+  Vector,
+ )
 
 type Parser = Parsec Void String
 
@@ -45,13 +54,13 @@ pExpressionBlock :: Parser ExpressionBlock
 pExpressionBlock = sepBy pExp (symbol ";")
 
 pExp :: Parser Expression
-pExp = choice [pAssignment, pExpression]
+pExp = choice [try pAssignment, pExpression]
 
 pAssignment :: Parser Expression
 pAssignment = Assignment <$> pVarName <* reserved "<-" <*> pExpression
 
 pVarName :: Parser String
-pVarName = undefined
+pVarName = (lexeme . try) ((:) <$> letterChar <*> many alphaNumChar)
 
 pExpression :: Parser Expression
 pExpression = makeExprParser pAtom operatorTable

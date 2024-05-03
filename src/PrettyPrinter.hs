@@ -17,10 +17,10 @@ prettyColumn ss = nums <+> seps <+> denoms
 prettyMatrix :: Matrix -> Box
 prettyMatrix m = hsep 2 top [front, ss, back]
  where
-  c = (snd . snd . bounds) m
+  (r, c) = (snd . bounds) m
   es = transpose $ chunksOf c $ elems m
   ss = hsep 2 top $ map prettyColumn es
-  border ch = vcat left $ replicate (length es - 1) (char ch)
+  border ch = vcat left $ replicate (r - 1) (char ch)
   front = char '[' // border '|'
   back = border ' ' // char ']'
 

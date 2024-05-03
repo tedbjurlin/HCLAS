@@ -1,11 +1,11 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GADTs #-}
+{-# OPTIONS_GHC -Wno-missing-deriving-strategies #-}
 
 module Types where
 
 import Data.Array
 import Data.Array.Base (amap)
-import Data.List.Split (chunksOf)
 import Data.Ratio (approxRational)
 import Data.Tuple (swap)
 
