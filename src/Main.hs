@@ -2,15 +2,14 @@
 
 module Main where
 
-import Control.Monad (unless)
-import Data.List.NonEmpty as NE
+import Data.List.NonEmpty as NE (head)
 import Data.Map (Map, empty)
 import Interpreter (interpret)
 import Parser (parseInput)
 import PrettyPrinter (printPretty)
 import System.IO (hFlush, stdout)
 import Text.Megaparsec (ErrorItem (EndOfInput), ParseError (TrivialError), ParseErrorBundle (bundleErrors), errorBundlePretty)
-import Types
+import Types (Function (INVERSE), Value (S))
 
 main :: IO ()
 main = do
@@ -42,18 +41,21 @@ multiLine l m v = do
   replBody l' m v
 
 replBody :: String -> Map String Value -> Value -> IO ()
-replBody l m v = unless (l == "EXIT()") $ case parseInput l of
-  (Left err) -> do
-    let errs = bundleErrors err
-    let e = NE.head errs
-    case e of
-      (TrivialError _ (Just EndOfInput) _) -> multiLine l m v
-      _ -> putStrLn (errorBundlePretty err) >> repl m v
-  (Right ex) -> do
-    case interpret m v ex of
-      Left err -> do
-        putStrLn err
-        repl m v
-      Right (m', v') -> do
-        printPretty v'
-        repl m' v'
+replBody l m v
+  | l == "EXIT()" = return ()
+  | l == "HELP" = putStrLn ("\nAvailable Functions:\n\n" ++ (unlines . map show . enumFrom) INVERSE) >> repl m v
+  | otherwise = case parseInput l of
+      (Left err) -> do
+        let errs = bundleErrors err
+        let e = NE.head errs
+        case e of
+          (TrivialError _ (Just EndOfInput) _) -> multiLine l m v
+          _ -> putStrLn (errorBundlePretty err) >> repl m v
+      (Right ex) -> do
+        case interpret m v ex of
+          Left err -> do
+            putStrLn err
+            repl m v
+          Right (m', v') -> do
+            printPretty v'
+            repl m' v'
