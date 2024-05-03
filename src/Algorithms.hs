@@ -14,6 +14,7 @@ import Types (
   dotProd,
   genMatAdd,
   identity,
+  isZeroVector,
   matMult,
   normalize,
   scalMatMult,
@@ -122,9 +123,12 @@ rowReplace m r1 r2 s = array (bounds m) (map f ms)
       else ((i, j), e)
 
 qrAlgo :: Matrix -> Matrix
-qrAlgo a = case find (isUpperTriangular (1 % 100000)) $ iterate qrStep a of
-  (Just m) -> amap (flip approxRational (0.00001 :: Float) . fromRational) m
-  Nothing -> error "Impossible termination of infinite list"
+qrAlgo a =
+  if isLinearlyIndependent $ columns a
+    then case find (isUpperTriangular (1 % 100000)) $ iterate qrStep a of
+      (Just m) -> amap (flip approxRational (0.00001 :: Float) . fromRational) m
+      Nothing -> error "Impossible termination of infinite list"
+    else error "matrix is not linearly independent"
 
 isUpperTriangular :: Scalar -> Matrix -> Bool
 isUpperTriangular epsilon a = all (\(_, s) -> s <= epsilon) (filter (\((i, j), _) -> i > j) as)
@@ -219,9 +223,6 @@ isLinearlyIndependent vs = (length vs <= dim vs) && not (isZeroVector r)
  where
   dim = fst . snd . bounds . head
   r = (rows . snd . ef) (joinColumns vs) !! (length vs - 1)
-
-isZeroVector :: Vector -> Bool
-isZeroVector = all (== 0) . elems
 
 inverse :: Matrix -> Matrix
 inverse m

@@ -88,7 +88,13 @@ norm :: Vector -> Scalar
 norm = flip approxRational (0.0000001 :: Float) . sqrt . fromRational . sum . map (^ (2 :: Int)) . elems
 
 normalize :: Vector -> Vector
-normalize v = scalMatMult (1 / norm v) v
+normalize v =
+  if isZeroVector v
+    then v
+    else scalMatMult (1 / norm v) v
+
+isZeroVector :: Vector -> Bool
+isZeroVector = all (== 0) . elems
 
 identity :: Int -> Matrix
 identity n = array ((1, 1), (n, n)) [if i == j then ((i, j), 1) else ((i, j), 0) | i <- [1 .. n], j <- [1 .. n]]

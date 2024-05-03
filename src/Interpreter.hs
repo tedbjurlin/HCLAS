@@ -1,9 +1,43 @@
 module Interpreter where
 
-import Algorithms
+import Algorithms (
+  augment,
+  columnSpace,
+  columns,
+  ef,
+  eigenSpace,
+  gramSchmidt,
+  gsProj,
+  independentSubset,
+  inverse,
+  isBasis,
+  isConsistent,
+  isEigenValue,
+  isEigenVector,
+  isLinearlyIndependent,
+  nullSpace,
+  nullity,
+  qrAlgo,
+  rank,
+  rowSpace,
+  rref,
+  spans,
+  withinSpan,
+ )
 import Data.Map (Map)
 import qualified Data.Map as M
-import Types
+import Types (
+  BinOp (..),
+  Expression (..),
+  ExpressionBlock,
+  Function (..),
+  Value (..),
+  genMatAdd,
+  matAdd,
+  matMult,
+  scalMatMult,
+  transpose,
+ )
 
 interpret :: Map String Value -> Value -> ExpressionBlock -> (Map String Value, Value)
 interpret m ans = foldr f (m, ans)
@@ -140,7 +174,7 @@ interpretFunction m f es = case f of
     _ -> error "Incorrect type for in span"
   IS_INDEPENDENT -> case head vs of
     (VL vl) -> B $ isLinearlyIndependent vl
-    _ -> error "Incorrect type for orthonormal basis"
+    _ -> error "Incorrect type for independent check"
   EIGENSPACE -> case (head vs, (head . tail) vs) of
     (M mat, S s) -> VL $ eigenSpace mat s
     _ -> error "Incorrect type for in eigenspace"
