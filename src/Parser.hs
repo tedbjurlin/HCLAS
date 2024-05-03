@@ -141,7 +141,7 @@ constructMatrix l =
     else fail "All rows in a matrix must be of equal length."
 
 pRow :: Parser [Scalar]
-pRow = some pScalar
+pRow = some (choice [pScalar, parens pScalar])
 
 pScalar :: Parser Scalar
 pScalar =

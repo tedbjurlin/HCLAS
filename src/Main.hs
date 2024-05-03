@@ -50,7 +50,7 @@ repl m v = do
 
 multiLine :: String -> Map String Value -> Value -> IO ()
 multiLine l m v = do
-  putStr "-- "
+  putStr ".. "
   hFlush stdout
   l2 <- getLine
   let l' = l ++ l2
