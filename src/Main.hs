@@ -43,7 +43,7 @@ multiLine l m v = do
 replBody :: String -> Map String Value -> Value -> IO ()
 replBody l m v
   | l == "EXIT()" = return ()
-  | l == "HELP" = putStrLn ("\nAvailable Functions:\n\n" ++ (unlines . map show . enumFrom) INVERSE) >> repl m v
+  | l == "HELP()" = putStrLn ("\nAvailable Functions:\n\n" ++ (unlines . map show . enumFrom) INVERSE) >> repl m v
   | otherwise = case parseInput l of
       (Left err) -> do
         let errs = bundleErrors err
