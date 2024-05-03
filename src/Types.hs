@@ -109,6 +109,7 @@ data Value
   | M Matrix
   | V Vector
   | VL [Vector]
+  | B Bool
   deriving (Show, Eq)
 
 data Function
